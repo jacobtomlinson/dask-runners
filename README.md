@@ -31,7 +31,7 @@ The runner assumes that many instances of itself are being created, and it needs
 
 Inspired by `dask-mpi` the `MPIRunner` class uses [MPI](https://en.wikipedia.org/wiki/Message_Passing_Interface) to handle communication and identification.
 
-Each process can use the `mpi4py.MPI.COMM_WORLD` to communicate with other processes and find out it's rank (a unique monotonic index that is assigned to each process).
+Each process can use the `mpi4py.MPI.COMM_WORLD` to communicate with other processes and find out it's rank (a unique monotonic index that is assigned to each process) to use as it's ID and the world size (how many processes there are in total).
 
 - The process with rank `0` assumes it is the scheduler, it starts the scheduler process and broadcasts it's network address over the MPI comm.
 - The process with rank `1` assumes it should run the client code, it waits for the scheduler address to be broadcast and then continues running the contents of the context manager.
@@ -41,7 +41,8 @@ Each process can use the `mpi4py.MPI.COMM_WORLD` to communicate with other proce
 from dask.distributed import Client
 from dask_hpc_runner import MPIRunner
 
-# Only rank 1 will execute the contents of the context manager, the rest will start the Dask cluster
+# Only rank 1 will execute the contents of the context manager
+# the rest will start the Dask cluster components instead
 with MPIRunner() as runner:
     # The runner object contains the scheduler address and can be passed directly to a client
     with Client(runner) as client:
@@ -52,3 +53,16 @@ with MPIRunner() as runner:
         assert client.submit(lambda x: x + 1, 10).result() == 11
         assert client.submit(lambda x: x + 1, 20, workers=2).result() == 21
 ```
+
+### `SLURMRunner`
+
+> [!NOTE]
+> `SLURMRunner` is just an idea that could be implemented in the future.
+
+This runner could use the environment variables set in each process for self identification and a shared filesystem for communication.
+
+Each process can use the `SLURM_NODEID` for it's ID (a unique monotonic index that is assigned to each process) and the `SLURM_JOB_NUM_NODES` to know the total number of processes.
+
+- The process with rank `0` assumes it is the scheduler, it writes a [scheduler file](https://docs.dask.org/en/latest/deploying-cli.html#dask-scheduler) to the shared filesystem.
+- The process with rank `1` assumes it should run the client code, it waits for the scheduler file to exist and then continues running the contents of the context manager.
+- All processes with rank `2` and above assume they are workers, they wait for the scheduler file to exist and then start worker processes that connect to the scheduler.
