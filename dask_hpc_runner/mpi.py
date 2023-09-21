@@ -17,7 +17,7 @@ class MPIRunner(BaseRunner):
 
         self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
-        self.world_size = self.comm.Get_size()
+        self.world_size = self.n_workers = self.comm.Get_size()
         super().__init__(*args, **kwargs)
 
     async def get_role(self) -> str:
@@ -31,6 +31,7 @@ class MPIRunner(BaseRunner):
                 f"Not enough MPI ranks to start cluster, found {self.world_size}, "
                 "needs at least 2, one each for the scheduler and a worker."
             )
+        self.n_workers -= int(self.scheduler) + int(self.client)
         if self.rank == 0 and self.scheduler:
             return Role.scheduler
         elif self.rank == 1 and self.client:
