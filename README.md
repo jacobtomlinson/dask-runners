@@ -7,6 +7,12 @@
 
 Inspired by the unmerged changes in [dask/distributed#4710](https://github.com/dask/distributed/pull/4710) and [dask/dask-mpi#69](https://github.com/dask/dask-mpi/pull/69) this repo implements a `Runner` deployment model for Dask.
 
+## Installing
+
+```console
+$ pip install git+https://github.com/jacobtomlinson/dask-hpc-runner.git
+```
+
 ### `Runner` vs `Cluster`
 
 To understand what a `Runner` is let's first discuss Dask's cluster manager deployment model. Dask had many implementations of a cluster manager which is a Python class that handles the creation of a Dask cluster. It does this by creating the processes required to run the cluster via some kind of resource manager.
