@@ -12,10 +12,12 @@ class WorldTooSmallException(RuntimeError):
 
 
 class MPIRunner(BaseRunner):
-    def __init__(self, *args, **kwargs):
-        from mpi4py import MPI
+    def __init__(self, *args, comm=None, **kwargs):
+        self.comm = comm
+        if not self.comm:
+            from mpi4py import MPI
 
-        self.comm = MPI.COMM_WORLD
+            self.comm = MPI.COMM_WORLD
         self.rank = self.comm.Get_rank()
         self.world_size = self.n_workers = self.comm.Get_size()
         super().__init__(*args, **kwargs)
