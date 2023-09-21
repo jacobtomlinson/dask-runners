@@ -1,1 +1,2 @@
-from ._base import AsyncCommWorld, AsyncRunner  # noqa
+from .base import AsyncCommWorld, AsyncRunner  # noqa
+from .mpi import MPIRunner

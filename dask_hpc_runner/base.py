@@ -1,13 +1,14 @@
 import asyncio
 import sys
-import threading
 from contextlib import suppress
 from enum import Enum
 from typing import Dict
+import warnings
+from tornado.ioloop import IOLoop
 
 from distributed.core import CommClosedError, Status, rpc
 from distributed.scheduler import Scheduler
-from distributed.utils import LoopRunner, import_term, sync, thread_state
+from distributed.utils import LoopRunner, import_term, SyncMethodMixin
 from distributed.worker import Worker
 
 
@@ -21,7 +22,7 @@ class Role(Enum):
     client = "client"
 
 
-class BaseRunner:
+class BaseRunner(SyncMethodMixin):
     """Superclass for runner objects.
 
     This class contains common functionality for Dask cluster runner classes.
@@ -45,6 +46,8 @@ class BaseRunner:
 
     """
 
+    __loop: IOLoop | None = None
+
     def __init__(
         self,
         scheduler: bool = True,
@@ -60,15 +63,16 @@ class BaseRunner:
         self.scheduler_address = None
         self.scheduler_comm = None
         self.client = client
+        if self.client and not self.scheduler:
+            raise RuntimeError("Cannot run client code without a scheduler.")
         self.scheduler_options = scheduler_options if scheduler_options is not None else {}
         self.worker_class = Worker if worker_class is None else import_term(worker_class)
         self.worker_options = worker_options if worker_options is not None else {}
         self.role = None
-        self._asynchronous = asynchronous
+        self.__asynchronous = asynchronous
         self._loop_runner = LoopRunner(loop=loop, asynchronous=asynchronous)
-        self.loop = self._loop_runner.loop
 
-        if not self.asynchronous:
+        if not self.__asynchronous:
             self._loop_runner.start()
             self.sync(self._start)
 
@@ -100,23 +104,22 @@ class BaseRunner:
         return None
 
     @property
-    def asynchronous(self):
-        return (
-            self._asynchronous
-            or getattr(thread_state, "asynchronous", False)
-            or hasattr(self.loop, "_thread_identity")
-            and self.loop._thread_identity == threading.get_ident()
-        )
+    def loop(self) -> IOLoop | None:
+        loop = self.__loop
+        if loop is None:
+            # If the loop is not running when this is called, the LoopRunner.loop
+            # property will raise a DeprecationWarning
+            # However subsequent calls might occur - eg atexit, where a stopped
+            # loop is still acceptable - so we cache access to the loop.
+            self.__loop = loop = self._loop_runner.loop
+        return loop
 
-    def sync(self, func, *args, asynchronous=None, callback_timeout=None, **kwargs):
-        asynchronous = asynchronous or self.asynchronous
-        if asynchronous:
-            future = func(*args, **kwargs)
-            if callback_timeout is not None:
-                future = asyncio.wait_for(future, callback_timeout)
-            return future
-        else:
-            return sync(self.loop, func, *args, **kwargs)
+    @loop.setter
+    def loop(self, value: IOLoop) -> None:
+        warnings.warn("setting the loop property is deprecated", DeprecationWarning, stacklevel=2)
+        if value is None:
+            raise ValueError("expected an IOLoop, got None")
+        self.__loop = value
 
     def __await__(self):
         async def _await():
@@ -140,9 +143,8 @@ class BaseRunner:
         return self.sync(self.__aexit__)
 
     def __del__(self):
-        if self.status != Status.closed:
-            with suppress(AttributeError, RuntimeError):  # during closing
-                self.loop.add_callback(self.close)
+        with suppress(AttributeError, RuntimeError):  # during closing
+            self.loop.add_callback(self.close)
 
     async def _start(self) -> None:
         self.role = await self.get_role()
@@ -160,7 +162,7 @@ class BaseRunner:
 
     async def start_scheduler(self) -> None:
         await self.before_scheduler_start()
-        async with Scheduler(**self.scheduler_options, loop=self.loop) as scheduler:
+        async with Scheduler(**self.scheduler_options) as scheduler:
             await self.set_scheduler_address(scheduler)
             await self.on_scheduler_start(scheduler)
             await scheduler.finished()
@@ -170,7 +172,7 @@ class BaseRunner:
             self.worker_options["scheduler_ip"] = await self.get_scheduler_address()
         worker_name = await self.get_worker_name()
         await self.before_worker_start()
-        async with self.worker_class(name=worker_name, **self.worker_options, loop=self.loop) as worker:
+        async with self.worker_class(name=worker_name, **self.worker_options) as worker:
             await self.on_worker_start(worker)
             await worker.finished()
 
@@ -183,7 +185,6 @@ class BaseRunner:
 
     def close(self) -> None:
         return self.sync(self._close)
-        self._loop_runner.stop()
 
 
 class AsyncCommWorld:
