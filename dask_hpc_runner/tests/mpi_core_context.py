@@ -1,8 +1,4 @@
-from time import sleep
-
-from distributed import Client
-from distributed.metrics import time
-
+from dask.distributed import Client
 from dask_hpc_runner import MPIRunner
 
 with MPIRunner() as runner:
