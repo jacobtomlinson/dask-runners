@@ -19,7 +19,7 @@ To understand what a `Runner` is let's first discuss Dask's cluster manager depl
 
 For example the `dask.distributed.LocalCluster` class creates subprocesses of the parent process with the scheduler and worker components, the `dask.distributed.SSHCluster` opens SSH connections to other systems and starts processes there, and the `dask_jobqueue.SLURMCluster` class uses the [SLURM Workload Manager](https://slurm.schedmd.com/documentation.html) to submit jobs to an HPC system for each Dask process.
 
-Critically the cluster manager coordinates service discovery externally. It creates the scheduler first, and therefore knows the network address of the scheduler, then it creates the workers and tells them where to find the scheduler at creation time. This generally feels like reaching out from the machine you are working on and creating a distributed cluster from nothing.
+Critically the cluster manager coordinates service discovery externally. It creates the scheduler first, and therefore knows the network address of the scheduler, then it creates the workers and tells them where to find the scheduler at creation time. This generally feels like reaching out from the machine you are working on and creating a distributed cluster from nothing, but this step-by-step deployment model doesn't always fit well with HPC systems where you need to create one big job instead of lots of small ones.
 
 The model of a `Runner` is very different. Instead of creating processes/jobs/containers/etc it acts from within an existing multi-process application. For example on an HPC system users may submit a job that requires hundreds of cores, and the workload manager will allocate that on many nodes of the machine and then start the same script/application on every node.
 
