@@ -23,7 +23,7 @@ Critically the cluster manager coordinates service discovery externally. It crea
 
 The model of a `Runner` is very different. Instead of creating processes/jobs/containers/etc it acts from within an existing multi-process application. For example on an HPC system users may submit a job that requires hundreds of cores, and the workload manager will allocate that on many nodes of the machine and then start the same script/application on every node.
 
-It is then the job of each instance of the application to discover and coordinate with the other nodes. There is no central point of creation that has knowledge of the scheduler address, the processes have to fend for themselves and ultimately choose who will be the scheduler. This model feels more like blowing up a balloon inside a box, we aren't creating a cluster from nothing, instead we are taking an existing space and populating it with one.
+It is then the job of each instance of the application to discover and coordinate with the other nodes. There is no central point of creation that has knowledge of the scheduler address, the processes have to fend for themselves and ultimately choose who will be the scheduler. This model feels more like blowing up a balloon inside a box, we aren't creating a cluster from nothing, instead we are taking an existing space and populating it with one from within.
 
 In order to initialise a cluster in this distributed fashion the processes need some kind of method of communication, some systems will tell each process enough information for it to work out what to do, others will require some kind of [distributed consensus mechanism](https://en.wikipedia.org/wiki/Raft_(algorithm)) to conduct leadership election.
 
@@ -59,16 +59,3 @@ with MPIRunner() as runner:
         assert client.submit(lambda x: x + 1, 10).result() == 11
         assert client.submit(lambda x: x + 1, 20, workers=2).result() == 21
 ```
-
-### `SLURMRunner`
-
-> [!NOTE]
-> `SLURMRunner` is just an idea that could be implemented in the future.
-
-This runner could use the environment variables set in each process for self identification and a shared filesystem for communication.
-
-Each process can use the `SLURM_NODEID` for it's ID (a unique monotonic index that is assigned to each process) and the `SLURM_JOB_NUM_NODES` to know the total number of processes.
-
-- The process with rank `0` assumes it is the scheduler, it writes a [scheduler file](https://docs.dask.org/en/latest/deploying-cli.html#dask-scheduler) to the shared filesystem.
-- The process with rank `1` assumes it should run the client code, it waits for the scheduler file to exist and then continues running the contents of the context manager.
-- All processes with rank `2` and above assume they are workers, they wait for the scheduler file to exist and then start worker processes that connect to the scheduler.
