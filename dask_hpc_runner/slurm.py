@@ -9,13 +9,17 @@ class WorldTooSmallException(RuntimeError):
     """Not enough MPI ranks to start all required processes."""
 
 
-class MPIRunner(BaseRunner):
-    def __init__(self, *args, **kwargs):
-        from mpi4py import MPI
-
+class SLURMRunner(BaseRunner):
+    def __init__(self, *args, scheduler_file=None, **kwargs):
         try:
             self.rank = int(os.environ["SLURM_NODEID"])
             self.world_size = int(os.environ["SLURM_JOB_NUM_NODES"])
+            if not scheduler_file:
+                raise RuntimeError("A scheduelr file path must be provided that is accessible to all nodes")
+            if "scheduler_options" in kwargs and isinstance(kwargs["scheduler_options"], dict):
+                kwargs["scheduler_options"]["scheduler_file"] = scheduler_file
+            else:
+                kwargs["scheduler_options"] = {"scheduler_file", scheduler_file}
         except KeyError:
             raise RuntimeError("Not a SLURM job")
         super().__init__(*args, **kwargs)
