@@ -1,4 +1,4 @@
-# Dask HPC Runner
+# Dask Runners
 
 > [!WARNING]
 > This repo is experimental.
