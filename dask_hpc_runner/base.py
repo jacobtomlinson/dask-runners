@@ -156,7 +156,8 @@ class BaseRunner(SyncMethodMixin):
             sys.exit(0)
         elif self.role == Role.client:
             self.scheduler_address = await self.get_scheduler_address()
-            self.scheduler_comm = rpc(self.scheduler_address)
+            if self.scheduler_address:
+                self.scheduler_comm = rpc(self.scheduler_address)
             await self.before_client_start()
         self.status = Status.running
 
@@ -179,8 +180,9 @@ class BaseRunner(SyncMethodMixin):
     async def _close(self) -> None:
         print(f"stopping {self.role}")
         if self.status == Status.running:
-            with suppress(CommClosedError):
-                await self.scheduler_comm.terminate()
+            if self.scheduler_comm:
+                with suppress(CommClosedError):
+                    await self.scheduler_comm.terminate()
             self.status = Status.closed
 
     def close(self) -> None:
