@@ -24,3 +24,7 @@ def mpirun(allow_run_as_root):
         return ["mpirun", "--allow-run-as-root"]
     else:
         return ["mpirun"]
+
+@pytest.fixture
+def srun():
+    return ["srun", "--mpi=none"]
