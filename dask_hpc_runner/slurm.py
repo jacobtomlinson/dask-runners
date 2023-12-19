@@ -1,6 +1,8 @@
+import asyncio
 import atexit
+import json
 import os
-import sys
+from pathlib import Path
 
 import dask
 from dask.distributed import Scheduler
@@ -14,14 +16,37 @@ class WorldTooSmallException(RuntimeError):
 
 
 class SlurmRunner(BaseRunner):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, scheduler_file=None, **kwargs):
         try:
             self.rank = int(os.environ["SLURM_PROCID"])
             self.world_size = self.n_workers = int(os.environ["SLURM_NTASKS"])
+            self.job_id = int(os.environ["SLURM_JOB_ID"])
         except KeyError as e:
-            raise RuntimeError("SLURM_PROCID and SLURM_NTASKS must be present "
+            raise RuntimeError("SLURM_PROCID, SLURM_NTASKS, and SLURM_JOB_ID must be present "
                                "in the environment."
                                ) from e
+        if not scheduler_file:
+            scheduler_file = kwargs.get("scheduler_options",{}).get("scheduler_file")
+        
+        if not scheduler_file:
+            raise RuntimeError("scheduler_file must be specified in either the "
+                               "scheduler_options and worker_options or as a "
+                               "keyword argument to SlurmRunner.")
+        
+        # Ensure uniqueness by appending the job ID
+        scheduler_file = Path(scheduler_file)
+        scheduler_file = scheduler_file.with_name(f"{scheduler_file.stem}-{self.job_id}{scheduler_file.suffix}")
+
+        if isinstance(kwargs.get("scheduler_options"), dict):
+            kwargs["scheduler_options"]["scheduler_file"] = scheduler_file
+        else:
+            kwargs["scheduler_options"] = {"scheduler_file": scheduler_file}
+        if isinstance(kwargs.get("worker_options"), dict):
+            kwargs["worker_options"]["scheduler_file"] = scheduler_file
+        else:
+            kwargs["worker_options"] = {"scheduler_file": scheduler_file}
+
+        self.scheduler_file = scheduler_file
 
         super().__init__(*args, **kwargs)
 
@@ -54,10 +79,12 @@ class SlurmRunner(BaseRunner):
         return
 
     async def before_worker_start(self) -> None:
-        return
+        while not self.scheduler_file.exists():
+            await asyncio.sleep(0.2)
 
     async def before_client_start(self) -> None:
-        return
+        while not self.scheduler_file.exists():
+            await asyncio.sleep(0.2)
 
     async def get_worker_name(self) -> str:
         return self.rank
