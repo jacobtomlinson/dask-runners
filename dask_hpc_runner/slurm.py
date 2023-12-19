@@ -16,7 +16,7 @@ class WorldTooSmallException(RuntimeError):
 
 
 class SlurmRunner(BaseRunner):
-    def __init__(self, *args, scheduler_file=None, **kwargs):
+    def __init__(self, *args, scheduler_file="scheduler-{}.json", **kwargs):
         try:
             self.rank = int(os.environ["SLURM_PROCID"])
             self.world_size = self.n_workers = int(os.environ["SLURM_NTASKS"])
@@ -27,15 +27,14 @@ class SlurmRunner(BaseRunner):
                                ) from e
         if not scheduler_file:
             scheduler_file = kwargs.get("scheduler_options",{}).get("scheduler_file")
-        
+
         if not scheduler_file:
             raise RuntimeError("scheduler_file must be specified in either the "
-                               "scheduler_options and worker_options or as a "
-                               "keyword argument to SlurmRunner.")
-        
-        # Ensure uniqueness by appending the job ID
+                               "scheduler_options or as keyword argument to SlurmRunner.")
+
+        # Encourage filename uniqueness by inserting the job ID
+        scheduler_file = scheduler_file.format(self.job_id)
         scheduler_file = Path(scheduler_file)
-        scheduler_file = scheduler_file.with_name(f"{scheduler_file.stem}-{self.job_id}{scheduler_file.suffix}")
 
         if isinstance(kwargs.get("scheduler_options"), dict):
             kwargs["scheduler_options"]["scheduler_file"] = scheduler_file
@@ -111,7 +110,7 @@ def initialize(
     protocol=None,
     worker_class="distributed.Worker",
     worker_options=None,
-    scheduler_file="scheduler.json",
+    scheduler_file="scheduler-{}.json",
 ):
     """
     Initialize a Dask cluster using Slurm
@@ -146,7 +145,8 @@ def initialize(
     worker_options : dict
         Options to pass to workers
     scheduler_file : str
-        Filename to use when saving scheduler connection information
+        Filename to use when saving scheduler connection information. A format placeholder
+        will be replaced with the job ID.
     """
 
     scheduler_options = {
@@ -162,7 +162,6 @@ def initialize(
         "nthreads": nthreads,
         "memory_limit": memory_limit,
         "local_directory": local_directory,
-        "scheduler_file": scheduler_file,
     }
     worker_class = "dask.distributed.Nanny" if nanny else "dask.distributed.Worker"
     runner = SlurmRunner(
