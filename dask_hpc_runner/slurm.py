@@ -81,10 +81,17 @@ class SlurmRunner(BaseRunner):
     async def before_worker_start(self) -> None:
         while not self.scheduler_file.exists():
             await asyncio.sleep(0.2)
+        self.load_scheduler_address()
 
     async def before_client_start(self) -> None:
         while not self.scheduler_file.exists():
             await asyncio.sleep(0.2)
+        self.load_scheduler_address()
+
+    def load_scheduler_address(self):
+        with self.scheduler_file.open() as f:
+            cfg = json.load(f)
+        self.scheduler_address = cfg["address"]
 
     async def get_worker_name(self) -> str:
         return self.rank
