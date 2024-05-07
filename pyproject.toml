@@ -10,9 +10,7 @@ readme = "README.md"
 requires-python = ">=3.7"
 license = "MIT"
 keywords = []
-authors = [
-  { name = "Jacob Tomlinson", email = "jtomlinson@nvidia.com" },
-]
+authors = [{ name = "Jacob Tomlinson", email = "jtomlinson@nvidia.com" }]
 classifiers = [
   "Development Status :: 4 - Beta",
   "Programming Language :: Python",
@@ -24,7 +22,11 @@ classifiers = [
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
-dependencies = []
+dependencies = ["dask>=2024.1.1", "distributed>=2024.1.1"]
+
+[project.optional-dependencies]
+test = ["pytest>=7.2.2", "pytest-timeout", "anyio"]
+mpi = ["mpi4py"]
 
 [project.urls]
 Documentation = "https://github.com/unknown/dask-hpc-runner#readme"
@@ -35,47 +37,26 @@ Source = "https://github.com/unknown/dask-hpc-runner"
 path = "dask_hpc_runner/__about__.py"
 
 [tool.hatch.envs.default]
-dependencies = [
-  "coverage[toml]>=6.5",
-  "pytest",
-]
-[tool.hatch.envs.default.scripts]
-test = "pytest {args:tests}"
-test-cov = "coverage run -m pytest {args:tests}"
-cov-report = [
-  "- coverage combine",
-  "coverage report",
-]
-cov = [
-  "test-cov",
-  "cov-report",
-]
+dependencies = ["coverage[toml]>=6.5", "pytest"]
+
+[tool.hatch.envs.test]
+features = ["test", "mpi"]
+
+[tool.hatch.envs.test.scripts]
+default = "pytest"
+run = "pytest"
 
 [[tool.hatch.envs.all.matrix]]
 python = ["3.7", "3.8", "3.9", "3.10", "3.11"]
 
 [tool.hatch.envs.lint]
 detached = true
-dependencies = [
-  "black>=23.1.0",
-  "mypy>=1.0.0",
-  "ruff>=0.0.243",
-]
+dependencies = ["black>=23.1.0", "mypy>=1.0.0", "ruff>=0.0.243"]
 [tool.hatch.envs.lint.scripts]
 typing = "mypy --install-types --non-interactive {args:dask_hpc_runner tests}"
-style = [
-  "ruff {args:.}",
-  "black --check --diff {args:.}",
-]
-fmt = [
-  "black {args:.}",
-  "ruff --fix {args:.}",
-  "style",
-]
-all = [
-  "style",
-  "typing",
-]
+style = ["ruff {args:.}", "black --check --diff {args:.}"]
+fmt = ["black {args:.}", "ruff --fix {args:.}", "style"]
+all = ["style", "typing"]
 
 [tool.black]
 target-version = ["py37"]
@@ -118,9 +99,15 @@ ignore = [
   # Allow boolean positional values in function calls, like `dict.get(... True)`
   "FBT003",
   # Ignore checks for possible passwords
-  "S105", "S106", "S107",
+  "S105",
+  "S106",
+  "S107",
   # Ignore complexity
-  "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
+  "C901",
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
 ]
 unfixable = [
   # Don't touch unused imports
@@ -141,17 +128,11 @@ ban-relative-imports = "all"
 source_pkgs = ["dask_hpc_runner", "tests"]
 branch = true
 parallel = true
-omit = [
-  "dask_hpc_runner/__about__.py",
-]
+omit = ["dask_hpc_runner/__about__.py"]
 
 [tool.coverage.paths]
 dask_hpc_runner = ["dask_hpc_runner", "*/dask-hpc-runner/dask_hpc_runner"]
 tests = ["tests", "*/dask-hpc-runner/tests"]
 
 [tool.coverage.report]
-exclude_lines = [
-  "no cov",
-  "if __name__ == .__main__.:",
-  "if TYPE_CHECKING:",
-]
+exclude_lines = ["no cov", "if __name__ == .__main__.:", "if TYPE_CHECKING:"]
