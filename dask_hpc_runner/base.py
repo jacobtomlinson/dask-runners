@@ -180,10 +180,16 @@ class BaseRunner(SyncMethodMixin):
     async def _close(self) -> None:
         print(f"stopping {self.role}")
         if self.status == Status.running:
+            print("Terminating scheduler")
             if self.scheduler_comm:
+                print("Scheduler connected, closing")
                 with suppress(CommClosedError):
                     await self.scheduler_comm.terminate()
+                    print("Terminated")
+            else:
+                print("No connection to scheduler, unable to terminate")
             self.status = Status.closed
+        print(f"{self.role} stopped")
 
     def close(self) -> None:
         return self.sync(self._close)
