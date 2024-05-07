@@ -4,7 +4,7 @@ import sys
 
 import pytest
 
-pytest.skip()  # Skip SLURM tests which are currently hanging
+pytest.skip(allow_module_level=True)  # Skip SLURM tests which are currently hanging
 
 
 def test_context(srun):
