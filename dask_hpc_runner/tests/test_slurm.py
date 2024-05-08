@@ -5,8 +5,13 @@ import sys
 import pytest
 
 
+def slurm_cores():
+    "Use sinfo to get the number of available CPU cores"
+    return int(subprocess.check_output(["sinfo", "-o", "%C"]).split()[1].decode().split("/")[1])
+
+
 @pytest.mark.timeout(10)
-@pytest.mark.skipif(os.cpu_count() < 4, reason="Need at least 4 CPUs to run this test")
+@pytest.mark.skipif(slurm_cores() < 4, reason="Need at least 4 CPUs to run this test")
 def test_context(srun):
     script_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "slurm_core_context.py")
 
