@@ -16,7 +16,7 @@ class WorldTooSmallException(RuntimeError):
 
 
 class SlurmRunner(BaseRunner):
-    def __init__(self, *args, scheduler_file="scheduler-{}.json", **kwargs):
+    def __init__(self, *args, scheduler_file="scheduler-{job_id}.json", **kwargs):
         try:
             self.proc_id = int(os.environ["SLURM_PROCID"])
             self.world_size = self.n_workers = int(os.environ["SLURM_NTASKS"])
@@ -35,7 +35,7 @@ class SlurmRunner(BaseRunner):
             )
 
         # Encourage filename uniqueness by inserting the job ID
-        scheduler_file = scheduler_file.format(self.job_id)
+        scheduler_file = scheduler_file.format(job_id=self.job_id)
         scheduler_file = Path(scheduler_file)
 
         if isinstance(kwargs.get("scheduler_options"), dict):
