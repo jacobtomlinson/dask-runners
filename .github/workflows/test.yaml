@@ -36,3 +36,6 @@ jobs:
         run: pipx install hatch
       - name: Run tests
         run: hatch run test:run
+      - name: Debug SLURM queue
+        if: always()
+        run: squeue
