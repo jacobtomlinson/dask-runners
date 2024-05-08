@@ -2,7 +2,10 @@ import os
 import subprocess
 import sys
 
+import pytest
 
+
+@pytest.mark.timeout(10)
 def test_context(srun):
     script_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "slurm_core_context.py")
 
@@ -12,6 +15,7 @@ def test_context(srun):
     assert p.returncode == 0
 
 
+@pytest.mark.timeout(10)
 def test_small_world(srun):
     script_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), "slurm_core_context.py")
 
