@@ -18,19 +18,21 @@ class WorldTooSmallException(RuntimeError):
 class SlurmRunner(BaseRunner):
     def __init__(self, *args, scheduler_file="scheduler-{}.json", **kwargs):
         try:
-            self.rank = int(os.environ["SLURM_PROCID"])
+            self.proc_id = int(os.environ["SLURM_PROCID"])
             self.world_size = self.n_workers = int(os.environ["SLURM_NTASKS"])
             self.job_id = int(os.environ["SLURM_JOB_ID"])
         except KeyError as e:
-            raise RuntimeError("SLURM_PROCID, SLURM_NTASKS, and SLURM_JOB_ID must be present "
-                               "in the environment."
-                               ) from e
+            raise RuntimeError(
+                "SLURM_PROCID, SLURM_NTASKS, and SLURM_JOB_ID must be present in the environment."
+            ) from e
         if not scheduler_file:
-            scheduler_file = kwargs.get("scheduler_options",{}).get("scheduler_file")
+            scheduler_file = kwargs.get("scheduler_options", {}).get("scheduler_file")
 
         if not scheduler_file:
-            raise RuntimeError("scheduler_file must be specified in either the "
-                               "scheduler_options or as keyword argument to SlurmRunner.")
+            raise RuntimeError(
+                "scheduler_file must be specified in either the "
+                "scheduler_options or as keyword argument to SlurmRunner."
+            )
 
         # Encourage filename uniqueness by inserting the job ID
         scheduler_file = scheduler_file.format(self.job_id)
@@ -61,9 +63,9 @@ class SlurmRunner(BaseRunner):
                 "needs at least 2, one each for the scheduler and a worker."
             )
         self.n_workers -= int(self.scheduler) + int(self.client)
-        if self.rank == 0 and self.scheduler:
+        if self.proc_id == 0 and self.scheduler:
             return Role.scheduler
-        elif self.rank == 1 and self.client:
+        elif self.proc_id == 1 and self.client:
             return Role.client
         else:
             return Role.worker
@@ -72,28 +74,16 @@ class SlurmRunner(BaseRunner):
         return
 
     async def get_scheduler_address(self) -> str:
-        return
+        while not self.scheduler_file or not self.scheduler_file.exists():
+            await asyncio.sleep(0.2)
+        cfg = json.loads(self.scheduler_file.read_text())
+        return cfg["address"]
 
     async def on_scheduler_start(self, scheduler: Scheduler) -> None:
         return
 
-    async def before_worker_start(self) -> None:
-        while not self.scheduler_file.exists():
-            await asyncio.sleep(0.2)
-        self.load_scheduler_address()
-
-    async def before_client_start(self) -> None:
-        while not self.scheduler_file.exists():
-            await asyncio.sleep(0.2)
-        self.load_scheduler_address()
-
-    def load_scheduler_address(self):
-        with self.scheduler_file.open() as f:
-            cfg = json.load(f)
-        self.scheduler_address = cfg["address"]
-
     async def get_worker_name(self) -> str:
-        return self.rank
+        return self.proc_id
 
     async def _close(self):
         await super()._close()

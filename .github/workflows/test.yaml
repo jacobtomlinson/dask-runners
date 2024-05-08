@@ -6,11 +6,11 @@ on:
 concurrency:
     group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
     cancel-in-progress: true
-    
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     services:
         # Add a mysql databse for SLURM to use
         mysql:
@@ -30,7 +30,12 @@ jobs:
         uses: mpi4py/setup-mpi@v1
       - name: Setup SLURM
         uses: koesterlab/setup-slurm-action@v1
+      - name: Print SLURM info
+        run: sinfo -Nel
       - name: Install hatch
         run: pipx install hatch
       - name: Run tests
         run: hatch run test:run
+      - name: Debug SLURM queue
+        if: always()
+        run: squeue
