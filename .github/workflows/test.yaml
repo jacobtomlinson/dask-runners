@@ -30,6 +30,8 @@ jobs:
         uses: mpi4py/setup-mpi@v1
       - name: Setup SLURM
         uses: koesterlab/setup-slurm-action@v1
+      - name: Print SLURM info
+        run: sinfo -Nel
       - name: Install hatch
         run: pipx install hatch
       - name: Run tests
