@@ -59,3 +59,30 @@ with MPIRunner() as runner:
         assert client.submit(lambda x: x + 1, 10).result() == 11
         assert client.submit(lambda x: x + 1, 20, workers=2).result() == 21
 ```
+
+### `SLURMRunner`
+
+The [Slurm](https://slurm.schedmd.com/overview.html) Runner follows the same design as the MPI Runner but does not need MPI to be present. Instead it uses environment variables set by the Slurm scheduler to detect which role each process shoudl have, and uses a shared filesystem to transmit the scheduler's IP address and port.
+
+Slum assigned each process a minitonic index ID starting at `0`.
+
+- The process with ID `0` assumes it is the scheduler, it starts the scheduler process and writes a scheduler file containing connection information about the scheduler.
+- The process with ID `1` assumes it should run the client code, it waits for the scheduler file to be created then continues running the contents of the context manager.
+- All processes with ID `2` and above assume they are workers, they wait for the scheduler file to be created and then start worker processes configured with the contents of that file.
+
+```python
+from dask.distributed import Client
+from dask_hpc_runner import SlurmRunner
+
+# Only process ID 1 will execute the contents of the context manager
+# the rest will start the Dask cluster components instead
+with SlurmRunner(scheduler_file="/path/to/shared/filesystem/scheduler-{job_id}.json") as runner:
+    # The runner object contains the scheduler address and can be passed directly to a client
+    with Client(runner) as client:
+        # We can wait for all the workers to be ready before continuing
+        client.wait_for_workers(runner.n_workers)
+
+        # Then we can submit some work to the cluster
+        assert client.submit(lambda x: x + 1, 10).result() == 11
+        assert client.submit(lambda x: x + 1, 20, workers=2).result() == 21
+```
