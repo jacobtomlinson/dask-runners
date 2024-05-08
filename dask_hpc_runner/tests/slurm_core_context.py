@@ -1,5 +1,5 @@
 from dask.distributed import Client
-from dask_hpc_runner import  SlurmRunner
+from dask_hpc_runner import SlurmRunner
 
 with SlurmRunner() as runner:
     with Client(runner) as client:

@@ -18,7 +18,7 @@ class WorldTooSmallException(RuntimeError):
 class SlurmRunner(BaseRunner):
     def __init__(self, *args, scheduler_file="scheduler-{}.json", **kwargs):
         try:
-            self.rank = int(os.environ["SLURM_PROCID"])
+            self.proc_id = int(os.environ["SLURM_PROCID"])
             self.world_size = self.n_workers = int(os.environ["SLURM_NTASKS"])
             self.job_id = int(os.environ["SLURM_JOB_ID"])
         except KeyError as e:
@@ -63,9 +63,9 @@ class SlurmRunner(BaseRunner):
                 "needs at least 2, one each for the scheduler and a worker."
             )
         self.n_workers -= int(self.scheduler) + int(self.client)
-        if self.rank == 0 and self.scheduler:
+        if self.proc_id == 0 and self.scheduler:
             return Role.scheduler
-        elif self.rank == 1 and self.client:
+        elif self.proc_id == 1 and self.client:
             return Role.client
         else:
             return Role.worker
@@ -83,7 +83,7 @@ class SlurmRunner(BaseRunner):
         return
 
     async def get_worker_name(self) -> str:
-        return self.rank
+        return self.proc_id
 
     async def _close(self):
         await super()._close()

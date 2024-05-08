@@ -1,5 +1,7 @@
 import asyncio
 import sys
+import os
+import signal
 from contextlib import suppress
 from enum import Enum
 from typing import Dict
@@ -10,6 +12,10 @@ from distributed.core import CommClosedError, Status, rpc
 from distributed.scheduler import Scheduler
 from distributed.utils import LoopRunner, import_term, SyncMethodMixin
 from distributed.worker import Worker
+
+
+# Close gracefully when receiving a SIGINT
+signal.signal(signal.SIGINT, lambda *_: sys.exit())
 
 
 class Role(Enum):
@@ -150,10 +156,10 @@ class BaseRunner(SyncMethodMixin):
         self.role = await self.get_role()
         if self.role == Role.scheduler:
             await self.start_scheduler()
-            sys.exit(0)
+            os.kill(os.getpid(), signal.SIGINT)  # Shutdown with a signal to give the event loop time to close
         elif self.role == Role.worker:
             await self.start_worker()
-            sys.exit(0)
+            os.kill(os.getpid(), signal.SIGINT)  # Shutdown with a signal to give the event loop time to close
         elif self.role == Role.client:
             self.scheduler_address = await self.get_scheduler_address()
             if self.scheduler_address:
@@ -178,18 +184,11 @@ class BaseRunner(SyncMethodMixin):
             await worker.finished()
 
     async def _close(self) -> None:
-        print(f"stopping {self.role}")
         if self.status == Status.running:
-            print("Terminating scheduler")
             if self.scheduler_comm:
-                print("Scheduler connected, closing")
                 with suppress(CommClosedError):
                     await self.scheduler_comm.terminate()
-                    print("Terminated")
-            else:
-                print("No connection to scheduler, unable to terminate")
             self.status = Status.closed
-        print(f"{self.role} stopped")
 
     def close(self) -> None:
         return self.sync(self._close)
